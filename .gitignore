@@ -1,0 +1,21 @@
+# --- 민감 정보 / 환경별 설정 (실제 값은 .example 템플릿을 복사해서 로컬에서만 채우세요) ---
+group_vars/all.yml
+group_vars/vault.yml
+inventory/hosts.ini
+
+# --- SSH 프라이빗 키 ---
+*.pem
+*.key
+
+# --- 빌드 산출물 (배포는 ECR 이미지 pull 방식이라 jar를 저장소에 둘 필요 없음) ---
+*.jar
+
+# --- Ansible 실행 부산물 ---
+*.retry
+.vault_pass*
+
+# --- OS / 에디터 ---
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

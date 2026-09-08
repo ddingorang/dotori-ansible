@@ -1,0 +1,7 @@
+[dotori_server]
+ec2-target ansible_host=13.xxx.xxx.xxx
+
+[dotori_server:vars]
+ansible_user=ubuntu
+ansible_ssh_private_key_file=~/.ssh/your-ec2-key.pem
+ansible_python_interpreter=/usr/bin/python3

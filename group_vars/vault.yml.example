@@ -1,0 +1,19 @@
+# 이 파일을 group_vars/vault.yml로 복사한 뒤 실제 값을 채우고,
+# 아래 명령으로 암호화해서 사용하세요. (평문으로 커밋 금지)
+#
+#   cp group_vars/vault.yml.example group_vars/vault.yml
+#   ansible-vault encrypt group_vars/vault.yml
+#
+# playbook 실행 시에는 --ask-vault-pass 옵션을 추가합니다.
+#   ansible-playbook playbook.yml --ask-vault-pass
+
+vault_postgres_password: ""
+vault_redis_password: ""
+vault_rabbitmq_password: ""
+vault_jwt_secret: ""
+vault_finance_api_key: ""
+
+# ECR에서 dotori-backend 이미지를 pull할 때 사용하는 IAM 자격증명
+# (Jenkins의 aws-ecr-credentials와 동일한 권한이면 됩니다: ecr:GetAuthorizationToken 등)
+vault_aws_access_key_id: ""
+vault_aws_secret_access_key: ""

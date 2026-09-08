@@ -1,0 +1,103 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: dotori-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: {{ postgres_db }}
+      POSTGRES_USER: {{ postgres_user }}
+      POSTGRES_PASSWORD: {{ postgres_password }}
+      TZ: Asia/Seoul
+    ports:
+      - "{{ postgres_port }}:5432"
+    volumes:
+      - dotori-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U {{ postgres_user }} -d {{ postgres_db }}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - dotori-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: dotori-redis
+    restart: unless-stopped
+    command: ["redis-server", "--requirepass", "{{ redis_password }}"]
+    ports:
+      - "{{ redis_port }}:6379"
+    volumes:
+      - dotori-redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "{{ redis_password }}", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - dotori-network
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: dotori-rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: {{ rabbitmq_user }}
+      RABBITMQ_DEFAULT_PASS: {{ rabbitmq_password }}
+      TZ: Asia/Seoul
+    ports:
+      - "{{ rabbitmq_port }}:5672"
+      - "{{ rabbitmq_management_port }}:15672"
+    volumes:
+      - dotori-rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - dotori-network
+
+  app:
+    image: ${ECR_REPO}:${IMAGE_TAG}
+    container_name: {{ app_name }}
+    restart: unless-stopped
+    environment:
+      SPRING_PROFILES_ACTIVE: {{ spring_profile }}
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: {{ postgres_db }}
+      POSTGRES_USER: {{ postgres_user }}
+      POSTGRES_PASSWORD: {{ postgres_password }}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: {{ redis_password }}
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USERNAME: {{ rabbitmq_user }}
+      RABBITMQ_PASSWORD: {{ rabbitmq_password }}
+      JWT_SECRET: {{ jwt_secret }}
+      COOKIE_SECURE: "{{ cookie_secure }}"
+      FINANCE_BASE_URL: {{ finance_base_url }}
+      FINANCE_API_KEY: {{ finance_api_key }}
+      TZ: Asia/Seoul
+    ports:
+      - "{{ app_port }}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - dotori-network
+
+volumes:
+  dotori-postgres-data:
+  dotori-redis-data:
+  dotori-rabbitmq-data:
+
+networks:
+  dotori-network:
+    driver: bridge

@@ -1,0 +1,64 @@
+# 이 파일을 group_vars/all.yml로 복사한 뒤, 아래 placeholder 값들을 실제 환경에 맞게 채우세요.
+#   cp group_vars/all.yml.example group_vars/all.yml
+#
+# 비밀번호/키 값은 여기 두지 말고 group_vars/vault.yml(ansible-vault로 암호화)에서 관리합니다.
+# (vault_*.yml.example 참고)
+
+# --- 공통 ---
+app_dir: /opt/dotori
+compose_project_name: dotori
+
+# --- PostgreSQL ---
+postgres_db: dotori_town
+postgres_user: dotori
+postgres_password: "{{ vault_postgres_password }}"
+postgres_port: 5432
+
+# --- Redis ---
+redis_password: "{{ vault_redis_password }}"
+redis_port: 6379
+
+# --- RabbitMQ ---
+rabbitmq_user: dotori
+rabbitmq_password: "{{ vault_rabbitmq_password }}"
+rabbitmq_port: 5672          # AMQP
+rabbitmq_management_port: 15672   # 관리 웹 UI
+
+# --- Spring Boot 애플리케이션 ---
+# 앱은 Jenkins가 빌드해서 ECR에 push한 Docker 이미지를 그대로 pull해서 실행합니다.
+# (jar를 서버로 직접 복사하는 방식은 더 이상 사용하지 않습니다)
+app_name: dotori-backend
+app_port: 8080
+spring_profile: prod
+
+# --- JWT ---
+jwt_secret: "{{ vault_jwt_secret }}"
+cookie_secure: "true"   # HTTPS 운영 환경이므로 true. 아직 TLS 없으면 false로.
+
+# --- 가상 금융망(Finance) 연동 ---
+finance_base_url: https://finopenapi.ssafy.io/ssafy/api/v1
+finance_api_key: "{{ vault_finance_api_key }}"
+
+# --- ECR (Jenkins가 push하는 이미지 저장소. docker-compose.yml.j2의 app image에 사용) ---
+aws_account_id: "123456789012"   # 실제 AWS 계정 ID로 변경
+aws_region: ap-northeast-2
+ecr_registry: "{{ aws_account_id }}.dkr.ecr.{{ aws_region }}.amazonaws.com"
+ecr_repo: "{{ ecr_registry }}/dotori-backend"
+image_tag: latest   # Jenkins 배포 시 커밋 해시 태그를 pull하고, Ansible 단독 실행 시엔 latest를 사용
+aws_access_key_id: "{{ vault_aws_access_key_id }}"       # ECR pull용 (Jenkins의 aws-ecr-credentials와 동일 계정)
+aws_secret_access_key: "{{ vault_aws_secret_access_key }}"
+
+# --- Jenkins ---
+jenkins_port: 9090
+jenkins_jdk_package: openjdk-17-jdk   # Jenkins 요구, 필요 시 openjdk-21-jdk로 변경
+
+# --- Nginx (리버스 프록시: {{ nginx_port }} -> 127.0.0.1:{{ app_port }}) ---
+nginx_port: 80
+nginx_server_name: "{{ domain_name if domain_name else '_' }}"   # domain_name이 있으면 자동으로 해당 도메인 사용
+
+# --- HTTPS (Let's Encrypt / certbot) ---
+# domain_name을 채우면(A 레코드가 이 서버의 퍼블릭 IP를 가리키고 있어야 함) 자동으로
+# certbot으로 인증서를 발급받아 443 포트에 HTTPS를 적용합니다. 비워두면 기존처럼 80번 HTTP만 사용합니다.
+domain_name: ""            # 예: dotori.example.com
+certbot_email: ""          # Let's Encrypt 만료 알림을 받을 이메일 (domain_name 설정 시 필수)
+enable_https: "{{ domain_name | length > 0 }}"
