@@ -13,19 +13,21 @@ Internet
   ▼
 Nginx (80/443, 리버스 프록시 + Let's Encrypt HTTPS)
   │
-  ▼
-Spring Boot 앱 컨테이너 (8080)
+  ├── /            → Spring Boot 앱 컨테이너 (8080)
+  │                     ├── PostgreSQL 컨테이너 (5432)
+  │                     ├── Redis 컨테이너 (6379)
+  │                     └── RabbitMQ 컨테이너 (5672 / 관리 UI 15672)
   │
-  ├── PostgreSQL 컨테이너 (5432)
-  ├── Redis 컨테이너 (6379)
-  └── RabbitMQ 컨테이너 (5672 / 관리 UI 15672)
+  └── /finance/    → Finance Sandbox 컨테이너 (8090) - finance-sandbox jar를 서버에서 로컬 빌드
 
 별도: Jenkins (9090) - 앱 이미지를 빌드해서 ECR에 push
 ```
 
 앱 이미지는 Jenkins가 빌드해서 ECR에 push한 것을 그대로 pull해서 실행합니다(jar를 서버로
-직접 복사하는 방식은 사용하지 않습니다). PostgreSQL/Redis/RabbitMQ 데이터는 Docker
-볼륨에 저장되어 컨테이너를 재기동해도 유지됩니다.
+직접 복사하는 방식은 사용하지 않습니다). 다만 Finance Sandbox는 별도 CI/ECR 파이프라인이
+없으므로, 저장소 루트에 준비해둔 jar 파일을 Ansible이 서버로 복사한 뒤 그 자리에서
+`docker compose build`로 이미지를 빌드해 컨테이너로 띄웁니다(`files/finance-sandbox/Dockerfile`).
+PostgreSQL/Redis/RabbitMQ 데이터는 Docker 볼륨에 저장되어 컨테이너를 재기동해도 유지됩니다.
 
 ## 사전 준비
 
@@ -36,6 +38,9 @@ Spring Boot 앱 컨테이너 (8080)
      통신에만 쓰이므로 외부 오픈은 선택 사항입니다
 2. **로컬/CI 환경**: Ansible 설치 (`pip install ansible` 또는 `brew install ansible`)
 3. **SSH 키**: EC2 접속용 pem 키 파일 준비 (저장소에는 포함되어 있지 않습니다 — 직접 준비)
+4. **Finance Sandbox jar**: 저장소 루트에 `finance-sandbox-0.0.1-SNAPSHOT.jar` 파일을 준비
+   (`.gitignore`의 `*.jar` 규칙 때문에 커밋되지 않으므로, 배포 전마다 최신 jar를 직접 이
+   위치에 두어야 합니다)
 
 ```bash
 git clone <이 저장소>
@@ -171,6 +176,10 @@ dotori-ansible/
 ├── group_vars/
 │   ├── all.yml.example        # cp → all.yml 로 실제 값 채우기
 │   └── vault.yml.example      # cp → vault.yml 로 실제 값 채우고 ansible-vault encrypt
+├── files/
+│   └── finance-sandbox/
+│       └── Dockerfile         # finance-sandbox jar를 서버에서 빌드하기 위한 Dockerfile
+├── finance-sandbox-0.0.1-SNAPSHOT.jar   # 직접 준비 (커밋되지 않음, .gitignore 참고)
 └── templates/
     ├── docker-compose.yml.j2
     ├── env.j2
@@ -185,6 +194,9 @@ dotori-ansible/
   단계를 파이프라인에 그대로 편입시킬 수 있습니다.
 - 지금 구조는 서버 1대에 앱과 DB를 함께 두는 구성입니다. 트래픽이 늘어나면 DB를 별도
   인스턴스(RDS, ElastiCache 등)로 분리하는 것을 고려하세요.
+- Finance Sandbox(8090) 컨테이너는 포트를 직접 외부에 열지 않고, Nginx가 `/finance/`
+  경로로 리버스 프록시합니다 (`http(s)://<도메인 또는 EC2 IP>/finance/...`). 8090 포트
+  자체는 PostgreSQL/Redis/RabbitMQ와 마찬가지로 UFW에서 열려 있지 않습니다.
 - `domain_name`을 설정하지 않으면 Nginx는 80번 포트로 평문 HTTP만 프록시합니다. 이 경우
   `cookie_secure`도 `false`로 바꿔주는 것을 권장합니다(기본값은 `true`이며 HTTPS 없이
   `true`로 두면 브라우저가 쿠키를 저장하지 않습니다).

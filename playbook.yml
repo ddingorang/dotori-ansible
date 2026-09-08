@@ -412,12 +412,38 @@
         group: "{{ ansible_user }}"
         mode: "0644"
 
+    # ---------- 7-1. Finance Sandbox 배포 준비 (jar를 서버로 복사해 로컬 빌드) ----------
+    - name: finance-sandbox 빌드 디렉토리 생성
+      file:
+        path: "{{ app_dir }}/finance-sandbox"
+        state: directory
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: "0755"
+
+    - name: finance-sandbox Dockerfile 배포
+      copy:
+        src: files/finance-sandbox/Dockerfile
+        dest: "{{ app_dir }}/finance-sandbox/Dockerfile"
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: "0644"
+
+    - name: finance-sandbox jar 파일을 서버로 복사
+      copy:
+        src: finance-sandbox-0.0.1-SNAPSHOT.jar
+        dest: "{{ app_dir }}/finance-sandbox/finance-sandbox-0.0.1-SNAPSHOT.jar"
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: "0644"
+
     # ---------- 8. 컨테이너 기동 ----------
     - name: 기존 컨테이너 재기동 (변경 사항 반영)
       community.docker.docker_compose_v2:
         project_src: "{{ app_dir }}"
         state: present
         pull: always
+        build: always
 
     - name: 컨테이너 상태 확인
       command: docker compose -f {{ app_dir }}/docker-compose.yml ps

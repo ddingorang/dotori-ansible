@@ -93,6 +93,22 @@ services:
     networks:
       - dotori-network
 
+  finance-sandbox:
+    build:
+      context: ./finance-sandbox
+    pull_policy: build
+    container_name: dotori-finance-sandbox
+    restart: unless-stopped
+    environment:
+      SERVER_PORT: 8090
+      FINANCE_BASE_URL: {{ finance_base_url }}
+      FINANCE_API_KEY: {{ finance_api_key }}
+      TZ: Asia/Seoul
+    ports:
+      - "{{ finance_sandbox_port }}:8090"
+    networks:
+      - dotori-network
+
 volumes:
   dotori-postgres-data:
   dotori-redis-data:
